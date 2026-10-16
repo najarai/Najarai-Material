@@ -1051,7 +1051,20 @@ const COMPARATIVO_URL = "https://docs.google.com/spreadsheets/d/1Olp-2nceIEBF1UX
   });
 
   /* ── ganchos por slide ── */
+  const brandName = slides[2].querySelector(".name");
+  const BRAND_SIZE = 220, BRAND_MAX_W = 880;
+  function fitBrand() {
+    brandName.style.fontSize = BRAND_SIZE + "px";
+    const r = document.createRange();
+    r.selectNodeContents(brandName.querySelector(".mask > span"));
+    const scale = stage.getBoundingClientRect().width / stage.offsetWidth;
+    const w = r.getBoundingClientRect().width / scale;
+    if (w > BRAND_MAX_W) brandName.style.fontSize = Math.floor(BRAND_SIZE * BRAND_MAX_W / w) + "px";
+  }
+  if (document.fonts) document.fonts.addEventListener("loadingdone", fitBrand);
+
   const hooks = {
+    2: fitBrand,
     9: function () { setCase(0, false); },
     15: function (s, token) {
       const first = Array.from(s.querySelectorAll(".eq1 .tok"));
@@ -1254,6 +1267,7 @@ const COMPARATIVO_URL = "https://docs.google.com/spreadsheets/d/1Olp-2nceIEBF1UX
     if (started) return;
     started = true;
     fit();
+    fitBrand();
     stage.classList.add("ready");
     go(first);
   }
