@@ -1,0 +1,1264 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NAJARAI — Funcionários de IA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500&display=swap">
+<style>
+:root{
+  --night:#100E0C; --ivory:#F3EEE4; --ink:#16130F; --signal:#E7FF3D; --friction:#C4553A;
+  --in:cubic-bezier(.16,1,.3,1); --out:cubic-bezier(.7,0,.84,0);
+  --fd:"Fraunces","Iowan Old Style",Palatino,"Palatino Linotype",serif;
+  --ft:"Outfit","Segoe UI",sans-serif;
+  --fm:"JetBrains Mono","Cascadia Mono",Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#0B0A08}
+body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+h1,h2,h3,p,ul,ol,li{margin:0;padding:0;font-weight:inherit;font-size:inherit}
+ul,ol{list-style:none}
+em{font-style:italic}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;text-align:left;cursor:pointer}
+a{color:inherit;text-decoration:none}
+
+/* ───────── palco ───────── */
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden;transform-origin:0 0;
+  background:var(--night);font-family:var(--ft);user-select:none;-webkit-user-select:none;
+  opacity:0;transition:opacity 420ms var(--in)}
+#stage.ready{opacity:1}
+#deck{position:absolute;inset:0;transform-origin:50% 50%;transition:transform 320ms var(--in),opacity 320ms var(--in)}
+
+.slide{position:absolute;inset:0;visibility:hidden;z-index:0}
+.slide.is-current{visibility:visible;z-index:2}
+.slide.is-leaving{visibility:visible;z-index:1}
+.floor{position:absolute;inset:0;transition:opacity 420ms var(--in)}
+.inner{position:absolute;inset:0}
+.inner > *{position:absolute;margin:0}
+.night{--fg:#F3EEE4;--soft:rgba(243,238,228,.78);--mute:rgba(243,238,228,.55);--wire:rgba(243,238,228,.20);color:var(--fg)}
+.ivory{--fg:#16130F;--soft:rgba(22,19,15,.72);--mute:rgba(22,19,15,.68);--wire:rgba(22,19,15,.16);color:var(--fg)}
+.night .floor{background:var(--night)}
+.ivory .floor{background:var(--ivory)}
+
+.is-pre .floor{opacity:0;transition:none}
+.is-leaving .floor{opacity:1;transition:none}
+.is-leaving .inner{opacity:0;transform:translateY(-12px);transition:opacity 240ms var(--out),transform 240ms var(--out)}
+
+/* três camadas */
+.a-up{transition:opacity 640ms var(--in) calc(160ms + var(--d,0ms)),transform 640ms var(--in) calc(160ms + var(--d,0ms))}
+.is-pre .a-up{opacity:0;transform:translateY(20px);transition:none}
+.a-x,.a-y{transition:transform 520ms var(--in) calc(80ms + var(--d,0ms))}
+.a-x{transform-origin:0 50%}
+.a-y{transform-origin:50% 0}
+.a-y.up{transform-origin:50% 100%}
+.is-pre .a-x{transform:scaleX(0);transition:none}
+.is-pre .a-y{transform:scaleY(0);transition:none}
+.mask{display:block;overflow:hidden;padding:.1em 0 .16em;margin:-.1em 0 -.16em}
+.mask > span{display:block;transition:transform 900ms var(--in) calc(160ms + var(--d,0ms))}
+.is-pre .mask > span{transform:translateY(112%);transition:none}
+
+/* tipo */
+.disp{font-family:var(--fd);font-weight:560;letter-spacing:-.03em;line-height:.92;font-optical-sizing:auto;font-variant-numeric:lining-nums}
+.txt{font-family:var(--ft);font-weight:400;font-size:22px;line-height:1.45}
+.lab{font-family:var(--ft);font-weight:500;font-size:13px;letter-spacing:.16em;text-transform:uppercase}
+.mono{font-family:var(--fm);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1,"zero" 0}
+.num{font-variant-numeric:tabular-nums lining-nums;font-feature-settings:"tnum" 1,"lnum" 1}
+.soft{color:var(--soft)}
+.mute{color:var(--mute)}
+.sig{color:var(--signal)}
+.w{background:var(--wire)}
+.w.h{height:1px}
+.w.v{width:1px}
+
+/* links */
+.lnk{display:inline-flex;align-items:center;gap:14px;cursor:pointer;user-select:text;-webkit-user-select:text}
+.ul{position:relative;display:inline-block}
+.u-base,.u-hot{position:absolute;left:0;right:0;bottom:-8px;height:1px;background:currentColor;pointer-events:none}
+.u-base{opacity:.2}
+.u-hot{transform:scaleX(0);transform-origin:0 50%;transition:transform 200ms var(--in)}
+.lnk:hover .u-hot,.lnk:focus-visible .u-hot{transform:scaleX(1)}
+.arr{width:26px;height:12px;overflow:visible;transition:transform 160ms var(--in)}
+.arr path{fill:none;stroke:currentColor;stroke-width:1;stroke-linecap:square;stroke-linejoin:miter}
+.lnk:hover .arr,.lnk:focus-visible .arr{transform:translateX(8px)}
+:focus{outline:none}
+:focus-visible{outline:1px solid var(--signal);outline-offset:3px}
+.ivory :focus-visible{outline-color:var(--ink)}
+.ivory .plan.black:focus-visible{outline-color:var(--ink)}
+
+/* ───────── chrome ───────── */
+.chrome{position:absolute;inset:0;pointer-events:none;z-index:20;transition:opacity 420ms var(--in)}
+.chrome > *{position:absolute;font-size:12px;line-height:1}
+.chrome.tn{color:rgba(243,238,228,.78)}
+.chrome.ti{color:rgba(22,19,15,.74);opacity:0}
+.c-brand{left:72px;top:40px;font-family:var(--ft);font-weight:500;letter-spacing:.22em}
+.c-sec{right:72px;top:40px;font-family:var(--fm);letter-spacing:.04em}
+.c-idx{left:72px;bottom:40px;font-family:var(--fm);letter-spacing:.04em}
+.svc{position:absolute;right:72px;bottom:42px;width:7px;height:7px;z-index:21;opacity:0;transition:opacity 500ms var(--in);pointer-events:none}
+.svc.on{opacity:1}
+.svc-core{position:absolute;inset:0;background:var(--signal);border-radius:2px;animation:svc 3.2s ease-in-out infinite alternate}
+.svc-ring{position:absolute;inset:-4px;border:1px solid rgba(22,19,15,.6);border-radius:2px;opacity:0;transition:opacity 420ms var(--in)}
+.svc.ink .svc-ring{opacity:1}
+@keyframes svc{from{opacity:.45}to{opacity:1}}
+
+/* ───────── visão geral ───────── */
+#overview{position:absolute;inset:0;z-index:10;background:var(--night);opacity:0;visibility:hidden;
+  transition:opacity 320ms var(--in),visibility 0s linear 320ms}
+.ov #overview{opacity:1;visibility:visible;transition:opacity 320ms var(--in),visibility 0s}
+.ov #deck{transform:scale(.96);opacity:0}
+.ov-grid{position:absolute;left:84px;top:286px;width:1752px;display:grid;grid-template-columns:repeat(6,272px);gap:24px}
+.thumb{position:relative;width:272px;height:153px;padding:18px 18px 16px;display:flex;flex-direction:column;justify-content:space-between;
+  opacity:0;transform:translateY(16px);transition:opacity 320ms var(--in) calc(var(--i)*20ms),transform 320ms var(--in) calc(var(--i)*20ms)}
+.ov .thumb{opacity:1;transform:none}
+.thumb.night{background:var(--night);color:var(--ivory)}
+.thumb.ivory{background:var(--ivory);color:var(--ink)}
+.thumb .fr{position:absolute;inset:0;border:1px solid currentColor;opacity:.2;transition:opacity 160ms var(--in);pointer-events:none}
+.thumb:hover .fr,.thumb:focus-visible .fr{opacity:1}
+.thumb.is-here .fr{border-color:var(--signal);opacity:1}
+.thumb .tn{font-size:12px;letter-spacing:.04em}
+.thumb .tt{font-size:19px;line-height:1.08;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.thumb:focus-visible{outline-offset:4px}
+
+/* ───────── 01 ───────── */
+.s01 .thread{width:1px;background:rgba(243,238,228,.62);transition-duration:980ms}
+.s01 .tname{font-size:13px;letter-spacing:.1em;text-transform:uppercase;top:578px;color:var(--soft)}
+.s01 .title{left:72px;top:588px;font-size:120px}
+.s01 .sub{left:76px;top:862px;max-width:640px;font-size:26px;line-height:1.4;color:var(--soft)}
+.s01 .hint{left:240px;bottom:40px;font-size:12px;line-height:1;letter-spacing:.02em;color:var(--mute)}
+
+/* ───────── 02 ───────── */
+.s02 .ag-lab{left:72px;top:150px;letter-spacing:.34em;color:var(--soft)}
+.s02 .agenda{left:372px;top:212px;width:1476px}
+.s02 .agenda li{position:relative;height:92px}
+.s02 .agenda .w{position:absolute;left:0;right:0;bottom:0}
+.s02 .agenda .row{position:absolute;left:0;bottom:22px;display:flex;align-items:baseline}
+.s02 .agenda .n{width:120px;font-size:16px;color:var(--signal);flex:none}
+.s02 .agenda .t{font-size:40px;line-height:1}
+.s02 .agenda .n.ghost{color:rgba(243,238,228,.35)}
+
+/* ───────── 03 ───────── */
+.s03 .who{left:72px;top:420px;font-size:15px;letter-spacing:.22em;text-transform:uppercase;color:var(--signal)}
+.s03 .name{left:60px;top:468px;font-size:220px}
+.s03 .para{left:1044px;top:366px;width:660px;font-size:24px}
+.s03 .mail{left:1044px;top:600px;display:flex;flex-direction:column;gap:14px}
+.s03 .mail .k{font-size:13px;color:var(--mute)}
+.s03 .mail .lnk{font-size:22px;color:var(--fg)}
+
+/* ───────── 04 ───────── */
+.s04 .title{left:72px;top:150px;width:1000px;font-size:68px}
+.s04 .proc .nm{font-size:56px;line-height:1}
+.s04 .tick{width:1px;height:18px;background:var(--friction)}
+.s04 .stat{left:66px;top:690px;font-size:190px}
+.s04 .stat .js-tail{opacity:0;transition:opacity 360ms var(--in)}
+.s04 .stat .js-tail.on{opacity:1}
+.slide.is-pre .stat .js-tail{transition:none}
+.s04 .note{left:800px;top:756px;width:460px;font-size:24px}
+
+/* ───────── 05 ───────── */
+.s05 .title{left:72px;top:130px;font-size:96px}
+.s05 .col h3{font-size:48px;line-height:1}
+.s05 .reg{margin-top:44px}
+.s05 .reg li{position:relative;padding:16px 0 16px 24px;font-size:24px;line-height:1.35}
+.s05 .reg .tr{position:absolute;left:0;top:19px;width:1px;height:28px;background:var(--friction);transition-duration:320ms}
+
+/* ───────── 06 ───────── */
+.s06 .title{left:72px;top:150px;font-size:40px;color:var(--soft)}
+.s06 .lead{left:72px;top:262px;width:1560px;font-size:72px;line-height:1.06}
+.s06 .lead em{color:var(--signal)}
+.s06 .blk{top:704px;width:760px}
+.s06 .blk .k{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--signal);margin-bottom:18px}
+.s06 .blk .txt{font-size:24px;max-width:600px}
+
+/* ───────── 07 ───────── */
+.s07 .title{left:72px;top:128px;font-size:64px}
+.s07 .col{top:262px;width:552px;height:480px}
+.s07 .col h3{font-size:40px;line-height:1}
+.s07 .col .lab{position:absolute;top:72px;color:var(--soft)}
+.s07 .col ul{position:absolute;top:104px}
+.s07 .col li{font-size:20px;line-height:1.45;margin-bottom:3px}
+.s07 .ben{position:absolute;top:322px;left:0;right:24px}
+.s07 .ben .k{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--soft);margin-bottom:14px}
+.s07 .ben .b{font-size:30px;line-height:1.1;letter-spacing:-.02em}
+.s07 .ben .roi{margin-top:14px;font-size:18px}
+.s07 .notes{top:880px;font-size:11px;line-height:1.75;color:rgba(22,19,15,.7)}
+
+/* ───────── 08 ───────── */
+.s08 .title{left:72px;top:128px;font-size:64px}
+.s08 .k{top:304px;font-size:13px;letter-spacing:.16em;text-transform:uppercase}
+.s08 .colx{top:360px;width:840px}
+.s08 .colx li{height:108px;display:flex;align-items:flex-end;padding-bottom:24px;font-size:28px;line-height:1.2}
+.s08 .colx.left li{color:var(--mute)}
+.s08 .div{width:1px;background:var(--signal)}
+
+/* ───────── 09 ───────── */
+.s09 .title{left:72px;top:128px;font-size:64px}
+.s09 .q{width:744px}
+.s09 .q h3{font-size:36px;line-height:1;margin-bottom:22px}
+.s09 .q .txt{max-width:660px}
+
+/* ───────── 10 ───────── */
+.s10 .title{left:72px;top:128px;font-size:56px}
+.s10 .panel{left:72px;top:250px;width:480px;height:700px;background:var(--ink);color:var(--ivory)}
+.s10 .cidx{position:absolute;left:0;top:42px;width:100%}
+.s10 .cidx button{display:flex;align-items:baseline;width:100%;height:88px;padding:28px 40px 0;color:rgba(243,238,228,.62)}
+.s10 .cidx .ci{font-family:var(--fm);font-size:12px;width:44px;flex:none;letter-spacing:.04em}
+.s10 .cidx .cw{display:flex;flex-direction:column}
+.s10 .cidx .cn{display:inline-block;font-family:var(--ft);font-size:22px;line-height:1.1;align-self:flex-start}
+.s10 .cidx .cs{font-size:13px;line-height:1.3;margin-top:4px;color:rgba(243,238,228,.62)}
+.s10 .cidx button.on{color:var(--ivory)}
+.s10 .cidx button.on .cn{font-family:var(--fd);font-weight:560;font-size:30px;letter-spacing:-.02em;line-height:1}
+.s10 .cbar{position:absolute;left:0;top:0;width:100px;height:1px;background:var(--signal);transform-origin:0 0;transition:transform 380ms var(--in)}
+.s10 .cbar.snap{transition:none}
+.s10 .detail{left:672px;top:262px;width:1176px}
+.s10 .case[hidden]{display:none}
+.s10 .rv{display:block;overflow:hidden;padding:.08em 0 .2em;margin:-.08em 0 -.2em}
+.s10 .rv > span{display:block;transition:transform 620ms var(--in) var(--rd,0ms)}
+.s10 .case.pre .rv > span{transform:translateY(106%);transition:none}
+.s10 .cat{font-size:14px;letter-spacing:.16em;text-transform:uppercase;color:var(--soft)}
+.s10 .cp{margin-top:26px;font-size:26px;line-height:1.42;max-width:1100px}
+.s10 .ck{margin-top:54px;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--soft)}
+.s10 .ck + .rv{margin-top:6px}
+.s10 .cr{font-size:48px;line-height:1.04}
+.s10 .ci2{font-size:32px;line-height:1.12}
+.s10 .ck.k2{margin-top:44px}
+
+/* ───────── 11 ───────── */
+.s11 .title{left:72px;top:128px;font-size:60px}
+.s11 .ph{top:478px;width:726px}
+.s11 .ph .wm{position:absolute;left:-16px;top:-206px;font-size:280px;line-height:1;color:rgba(243,238,228,.18);letter-spacing:-.04em;pointer-events:none}
+.s11 .ph h3{position:relative;font-size:48px;line-height:1;margin-bottom:26px}
+.s11 .ph .txt{position:relative;color:var(--soft)}
+.s11 .close{left:72px;top:838px;width:1776px;font-family:var(--fd);font-style:italic;font-weight:400;font-size:28px;line-height:1.32;letter-spacing:-.01em}
+
+/* ───────── 12 ───────── */
+.s12 .title{left:72px;top:128px;width:1600px;font-size:52px;line-height:1}
+.s12 .prog{left:72px;top:316px;width:1px;height:660px;background:var(--ink);transition-duration:600ms;transition-timing-function:linear}
+.s12 .band{left:112px;width:1736px;height:165px}
+.s12 .band .n{position:absolute;left:0;top:34px;font-size:14px;color:var(--soft)}
+.s12 .band h3{position:absolute;left:110px;top:28px;width:540px;font-size:34px;line-height:1.02}
+.s12 .band .txt{position:absolute;left:710px;top:30px;width:960px}
+
+/* ───────── 13 ───────── */
+.s13 .head{left:72px;top:128px}
+.s13 .head h2{font-size:64px}
+.s13 .head p{margin-top:28px;font-size:24px;color:var(--soft)}
+.s13 .f1{background:rgba(243,238,228,.92);transition-duration:760ms}
+.s13 .f2{background:rgba(243,238,228,.32);transition-duration:1000ms}
+.s13 .tk{width:1px;height:14px;background:rgba(243,238,228,.92)}
+.s13 .stg{bottom:542px;width:262px}
+.s13 .stg .n,.s13 .p04 .n{display:block;font-size:13px;color:var(--signal);margin-bottom:14px}
+.s13 .stg .nm,.s13 .p04 .nm{display:block;font-size:28px;line-height:1.02}
+.s13 .stg .dur{display:block;margin-top:10px;font-size:16px;color:var(--soft)}
+.s13 .p04{left:964px;bottom:542px}
+.s13 .tot{top:594px;right:1020px;font-size:64px;text-align:right}
+.s13 .min{top:594px;right:72px;font-size:64px;text-align:right;color:var(--soft)}
+.s13 .live{left:66px;top:816px;font-size:96px}
+
+/* ───────── 14 ───────── */
+.s14 .title{left:72px;top:128px;font-size:56px}
+.s14 .rl{left:72px;top:240px;width:426px;height:632px}
+.s14 .rl span{position:absolute;left:0;font-size:18px;line-height:1.3;color:var(--soft)}
+.s14 .plan{top:240px;width:426px;height:632px}
+.s14 .plan .fr{position:absolute;inset:0;border:1px solid var(--ink);opacity:.16;transition:opacity 160ms var(--in);pointer-events:none}
+.s14 .plan:hover .fr,.s14 .plan:focus-visible .fr{opacity:1}
+.s14 .plan.black{background:var(--ink);color:var(--ivory)}
+.s14 .plan.black .fr{border-color:var(--signal);opacity:.55}
+.s14 .plan.black:hover .fr,.s14 .plan.black:focus-visible .fr{opacity:1}
+.s14 .plan > p{position:absolute;left:32px;right:24px}
+.s14 .pn{top:38px;font-size:14px;letter-spacing:.16em;text-transform:uppercase}
+.s14 .plan.black .pn{color:var(--signal)}
+.s14 .c1{top:112px;font-size:22px;line-height:1.2}
+.s14 .c2{top:181px;font-size:44px}
+.s14 .c5{top:261px;font-size:44px}
+.s14 .c3{top:360px;font-size:76px;letter-spacing:-.01em}
+.s14 .c4{top:500px;font-size:20px}
+.s14 .c6{top:580px;font-size:20px}
+.s14 .rows .w{z-index:0}
+.s14 .notes{left:72px;top:900px;font-size:14px;line-height:1.7;color:var(--soft)}
+
+/* ───────── 15 ───────── */
+.s15 .title{left:72px;top:128px;font-size:64px}
+.s15 .pan{top:290px;width:820px}
+.s15 .pan h3{font-size:48px;line-height:1}
+.s15 .pan .sub{margin-top:14px;color:var(--soft)}
+.s15 .pan svg{display:block;margin-top:52px;overflow:visible;color:var(--ink)}
+.s15 .pan svg path{fill:none;stroke:currentColor;stroke-width:1.25;stroke-linecap:square;stroke-linejoin:miter;
+  stroke-dasharray:1;stroke-dashoffset:0;transition:stroke-dashoffset 500ms var(--in) calc(160ms + var(--d,0ms))}
+.is-pre .pan svg path{stroke-dashoffset:1;transition:none}
+.s15 .pan .k{margin-top:60px;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--soft)}
+.s15 .pan .big{margin-top:14px;font-size:140px;letter-spacing:-.01em}
+.s15 .pan .k2{margin-top:44px}
+.s15 .pan .man{margin-top:10px;font-size:36px}
+
+/* ───────── 16 ───────── */
+.s16 .title{left:72px;top:128px;font-size:56px}
+.s16 .eq{left:66px;top:420px;width:880px}
+.s16 .eq1{display:block;font-size:92px;white-space:nowrap}
+.s16 .eq2{position:relative;display:inline-block;margin-top:34px;font-size:150px;white-space:nowrap}
+.s16 .tok{display:inline-block;opacity:0;transform:translateY(14px);transition:opacity 380ms var(--in),transform 380ms var(--in)}
+.s16 .tok.on{opacity:1;transform:none}
+.is-pre .tok{transition:none}
+.s16 .eq-ul{position:absolute;left:4px;right:0;bottom:-14px;height:1px;background:var(--signal);transform:scaleX(0);transform-origin:0 50%;transition:transform 700ms var(--in) 200ms}
+.s16 .eq-ul.on{transform:scaleX(1)}
+.is-pre .eq-ul{transition:none}
+.s16 .rq{left:1020px;top:250px;width:828px}
+.s16 .rq li{position:relative;padding:20px 0 22px}
+.s16 .rq li .w{position:absolute;left:0;right:0;top:0}
+.s16 .rq .k{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--signal);margin-bottom:8px}
+.s16 .rq .txt{font-size:21px;line-height:1.42}
+.s16 .rq .ex{margin-top:8px;font-size:15px;line-height:1.5;color:var(--soft)}
+
+/* ───────── 17 ───────── */
+.s17 .src{left:72px;top:520px;font-size:14px;letter-spacing:.16em;color:var(--soft)}
+.s17 .doc{left:66px;top:572px;font-size:76px}
+.s17 .doc a{display:inline-block;position:relative}
+.s17 .doc .u-base,.s17 .doc .u-hot{bottom:-4px}
+.s17 .doc-cta{left:72px;top:790px;display:inline-flex;align-items:center;gap:20px;padding:24px 34px;
+  background:var(--ink);color:var(--ivory);font-family:var(--ft);font-weight:500;font-size:24px;line-height:1;cursor:pointer}
+.s17 .doc-cta[hidden]{display:none}
+.s17 .doc-cta .arr{width:16px;height:16px}
+.s17 .doc-cta .u-hot{left:0;right:0;bottom:0;background:var(--signal)}
+.s17 .doc-cta:hover .u-hot,.s17 .doc-cta:focus-visible .u-hot{transform:scaleX(1)}
+.s17 .doc-cta:hover .arr,.s17 .doc-cta:focus-visible .arr{transform:translate(4px,-4px)}
+
+/* ───────── 18 ───────── */
+.s18 .ctl{left:0;top:300px;width:1920px;text-align:center;letter-spacing:.34em;color:var(--soft)}
+.s18 .cb{left:0;width:1920px;text-align:center}
+.s18 .cb .k{font-size:12px;letter-spacing:.14em;color:var(--mute);margin-bottom:22px}
+.s18 .cb .lnk{font-size:64px;color:var(--fg)}
+.s18 .cb .u-base{transition-duration:400ms}
+.s18 .cb .u-base,.s18 .cb .u-hot{bottom:-14px}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{transition:none !important;animation:none !important}
+}
+</style>
+</head>
+<body>
+<div id="stage" role="application" aria-roledescription="apresentação" aria-label="NAJARAI — apresentação">
+<div id="deck">
+
+<!-- 01 -->
+<section class="slide night s01" data-sec="Abertura" data-title="Revolucione o seu Negócio com IA" aria-label="01 Abertura">
+  <div class="floor"></div>
+  <div class="inner">
+    <div class="w h a-x" style="left:1440px;top:560px;width:408px"></div>
+    <div class="thread a-y up" style="left:1480px;top:260px;height:300px;--d:0ms"></div>
+    <div class="thread a-y up" style="left:1620px;top:360px;height:200px;--d:140ms"></div>
+    <div class="thread a-y up" style="left:1760px;top:160px;height:400px;--d:280ms"></div>
+    <span class="tname mono a-up" style="left:1480px;--d:460ms">Vendas</span>
+    <span class="tname mono a-up" style="left:1620px;--d:600ms">Agendamento</span>
+    <span class="tname mono a-up" style="left:1760px;--d:740ms">Suporte</span>
+    <h1 class="disp title">
+      <span class="mask"><span style="--d:0ms">Revolucione o seu Negócio</span></span>
+      <span class="mask"><span style="--d:110ms">com <span class="sig">IA</span></span></span>
+    </h1>
+    <p class="txt sub a-up" style="--d:200ms">Funcionários inteligentes para Vendas, Agendamento e Suporte que trabalham 24/7.</p>
+    <p class="hint mono a-up" style="--d:900ms">setas para avançar · O visão geral · F tela cheia</p>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="slide night s02" data-sec="Agenda" data-title="Agenda" aria-label="02 Agenda">
+  <div class="floor"></div>
+  <div class="inner">
+    <p class="lab ag-lab a-up">Agenda</p>
+    <ol class="agenda">
+      <li><div class="w h a-x" style="--d:0ms"></div><div class="row a-up" style="--d:40ms"><span class="n mono">01</span><span class="t disp">Desafio Triplo das áreas de vendas e suporte</span></div></li>
+      <li><div class="w h a-x" style="--d:50ms"></div><div class="row a-up" style="--d:90ms"><span class="n mono">02</span><span class="t disp">O que são agentes de IA?</span></div></li>
+      <li><div class="w h a-x" style="--d:100ms"></div><div class="row a-up" style="--d:140ms"><span class="n mono">03</span><span class="t disp">Cases de Sucesso de Agentes de IA em diferentes empresas</span></div></li>
+      <li><div class="w h a-x" style="--d:150ms"></div><div class="row a-up" style="--d:190ms"><span class="n mono">04</span><span class="t disp">Demonstração Interativa dos Funcionários de IA para sua Empresa</span></div></li>
+      <li><div class="w h a-x" style="--d:200ms"></div><div class="row a-up" style="--d:240ms"><span class="n mono">05</span><span class="t disp">Feedback da Demonstração</span></div></li>
+      <li><div class="w h a-x" style="--d:250ms"></div><div class="row a-up" style="--d:290ms"><span class="n mono">06</span><span class="t disp">Próximos passos</span></div></li>
+      <li aria-hidden="true"><div class="row a-up" style="--d:340ms"><span class="n mono ghost">07</span></div></li>
+    </ol>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="slide night s03" data-sec="Najarai" data-title="NAJARAI | Leandro Najar" aria-label="03 Najarai">
+  <div class="floor"></div>
+  <div class="inner">
+    <p class="mono who a-up">Leandro Najar</p>
+    <h2 class="disp name">
+      <span class="mask"><span style="--d:40ms">NAJARAI</span></span>
+    </h2>
+    <div class="w v a-y" style="left:996px;top:330px;height:540px;--d:120ms"></div>
+    <p class="txt para a-up" style="--d:260ms">Sou especialista em IA e posso ajudar sua empresa a automatizar tarefas, aumentar a eficiência e a produtividade.</p>
+    <div class="mail a-up" style="--d:340ms">
+      <span class="mono k">email:</span>
+      <a class="lnk mono" href="mailto:lndr.najar.ai@gmail.com"><span class="ul">lndr.najar.ai@gmail.com<i class="u-base"></i><i class="u-hot"></i></span><svg class="arr" viewBox="0 0 26 12" aria-hidden="true"><path d="M0.5 6H24.5M19 0.8L24.5 6L19 11.2"/></svg></a>
+    </div>
+  </div>
+</section>
+
+<!-- 04 -->
+<section class="slide ivory s04" data-sec="Três processos" data-title="Os 3 processos que mais impactam pequenas empresas…" aria-label="04 Três processos">
+  <div class="floor"></div>
+  <div class="inner">
+    <h2 class="disp title a-up">Os 3 processos que mais<br>impactam pequenas empresas…</h2>
+
+    <div class="w h a-x" style="left:1122px;top:290px;width:726px;--d:0ms"></div>
+    <div class="tick a-y up" style="left:1847px;top:272px;--d:360ms"></div>
+    <div class="w h a-x" style="left:1122px;top:410px;width:726px;--d:90ms"></div>
+    <div class="tick a-y up" style="left:1847px;top:392px;--d:450ms"></div>
+    <div class="w h a-x" style="left:1122px;top:530px;width:726px;--d:180ms"></div>
+    <div class="tick a-y up" style="left:1847px;top:512px;--d:540ms"></div>
+    <p class="proc a-up" style="left:1122px;top:222px;--d:60ms"><span class="nm disp">Vendas</span></p>
+    <p class="proc a-up" style="left:1122px;top:342px;--d:120ms"><span class="nm disp">Agendamento</span></p>
+    <p class="proc a-up" style="left:1122px;top:462px;--d:180ms"><span class="nm disp">Suporte</span></p>
+
+    <div class="w h a-x" style="left:72px;top:640px;width:1776px;--d:120ms"></div>
+    <p class="disp stat num a-up" style="--d:260ms"><span data-to="70" data-delay="560">70</span><span class="js-tail">–80%</span></p>
+    <p class="txt note a-up" style="--d:340ms">dos pequenos negócios são significativamente impactados por todos os três simultaneamente.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="slide ivory s05" data-sec="Desafio" data-title="O desafio triplo" aria-label="05 Desafio">
+  <div class="floor"></div>
+  <div class="inner">
+    <h2 class="disp title a-up">O desafio triplo</h2>
+    <div class="w v a-y" style="left:648px;top:330px;height:600px;--d:40ms"></div>
+    <div class="w v a-y" style="left:1248px;top:330px;height:600px;--d:120ms"></div>
+
+    <div class="col a-up" style="left:72px;top:330px;width:552px;--d:40ms">
+      <h3 class="disp">Vendas</h3>
+      <ul class="reg">
+        <li><i class="tr a-y" style="--d:200ms"></i>Perda de leads qualificados</li>
+        <li><i class="tr a-y" style="--d:240ms"></i>Oportunidades não aproveitadas</li>
+        <li><i class="tr a-y" style="--d:280ms"></i>Longos ciclos de venda</li>
+        <li><i class="tr a-y" style="--d:320ms"></i>Baixa taxa de conversão</li>
+        <li><i class="tr a-y" style="--d:360ms"></i>Converter leads em clientes pagantes</li>
+      </ul>
+    </div>
+    <div class="col a-up" style="left:696px;top:330px;width:528px;--d:160ms">
+      <h3 class="disp">Agendamento</h3>
+      <ul class="reg">
+        <li><i class="tr a-y" style="--d:480ms"></i>Processos manuais demorados</li>
+        <li><i class="tr a-y" style="--d:520ms"></i>Erros frequentes de agendamento</li>
+        <li><i class="tr a-y" style="--d:560ms"></i>Lidar com cancelamentos e reagendamentos</li>
+        <li><i class="tr a-y" style="--d:600ms"></i>Otimizar o tempo entre compromissos</li>
+        <li><i class="tr a-y" style="--d:640ms"></i>Evitar sobreagendamento ou subagendamento</li>
+      </ul>
+    </div>
+    <div class="col a-up" style="left:1296px;top:330px;width:552px;--d:280ms">
+      <h3 class="disp">Suporte</h3>
+      <ul class="reg">
+        <li><i class="tr a-y" style="--d:760ms"></i>Tempos de resposta longos</li>
+        <li><i class="tr a-y" style="--d:800ms"></i>Clientes insatisfeitos</li>
+        <li><i class="tr a-y" style="--d:840ms"></i>Sobrecarga da equipe</li>
+        <li><i class="tr a-y" style="--d:880ms"></i>Resolução inconsistente de problemas</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="slide night s06" data-sec="Agentes" data-title="O que são Agentes de IA?" aria-label="06 Agentes">
+  <div class="floor"></div>
+  <div class="inner">
+    <h2 class="disp title a-up">O que são Agentes de IA?</h2>
+    <p class="disp lead">
+      <span class="mask"><span style="--d:60ms">Agentes de IA são como funcionários digitais</span></span>
+      <span class="mask"><span style="--d:140ms">incansáveis, prontos para trabalhar <em>24/7</em> em</span></span>
+      <span class="mask"><span style="--d:220ms">tarefas específicas do seu negócio.</span></span>
+    </p>
+    <div class="w h a-x" style="left:72px;top:640px;width:1776px;--d:200ms"></div>
+    <div class="w v a-y" style="left:948px;top:640px;height:260px;--d:400ms"></div>
+    <div class="blk a-up" style="left:72px;--d:520ms">
+      <p class="mono k">Inteligência Artificial</p>
+      <p class="txt">Capacidade de aprender, analisar e tomar decisões como um ser humano.</p>
+    </div>
+    <div class="blk a-up" style="left:996px;--d:590ms">
+      <p class="mono k">Autonomia</p>
+      <p class="txt">Executam tarefas e tomam decisões sem intervenção humana.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="slide ivory s07" data-sec="Habilidades" data-title="Habilidades dos Agentes de IA" aria-label="07 Habilidades">
+  <div class="floor"></div>
+  <div class="inner">
+    <h2 class="disp title a-up">Habilidades dos Agentes de IA</h2>
+    <div class="w v a-y" style="left:648px;top:262px;height:500px"></div>
+    <div class="w v a-y" style="left:1248px;top:262px;height:500px;--d:60ms"></div>
+
+    <div class="col a-up" style="left:72px;--d:40ms">
+      <h3 class="disp">Vendas</h3>
+      <p class="lab">Principais funções</p>
+      <ul class="txt">
+        <li>Qualifica leads</li>
+        <li>Responde dúvidas sobre produtos</li>
+        <li>Vendas de diferentes produtos</li>
+        <li>Acompanha o processo de venda</li>
+      </ul>
+      <div class="ben">
+        <p class="mono k">Principal Benefício</p>
+        <p class="disp b num">Aumento nas taxas de conversão em até <span data-to="35" data-delay="520">35</span>%¹</p>
+        <p class="mono roi">ROI de 100%–500%ᵗ</p>
+      </div>
+    </div>
+    <div class="col a-up" style="left:696px;width:528px;--d:100ms">
+      <h3 class="disp">Agendamento</h3>
+      <p class="lab">Principais funções</p>
+      <ul class="txt">
+        <li>Gerencia sua agenda</li>
+        <li>Marca e remarca compromissos</li>
+        <li>Sincronização de calendários</li>
+        <li>Envia lembretes personalizados automáticos</li>
+        <li>Otimiza horários disponíveis</li>
+      </ul>
+      <div class="ben">
+        <p class="mono k">Principal Benefício</p>
+        <p class="disp b num">Redução de no-shows em até <span data-to="50" data-delay="580">50</span>%²</p>
+        <p class="mono roi">ROI de 80%–300%ᵘ</p>
+      </div>
+    </div>
+    <div class="col a-up" style="left:1296px;--d:160ms">
+      <h3 class="disp">Suporte 24/7</h3>
+      <p class="lab">Principais funções</p>
+      <ul class="txt">
+        <li>Resolve problemas comuns</li>
+        <li>Fornece informações rápidas</li>
+        <li>Escala para humanos quando necessário</li>
+        <li>Base de conhecimento dinâmica</li>
+        <li>Suporte proativo</li>
+      </ul>
+      <div class="ben">
+        <p class="mono k">Principal Benefício</p>
+        <p class="disp b num">Melhoria no NPS em até <span data-to="45" data-delay="640">45</span>%³</p>
+        <p class="mono roi">ROI de 120%–700%ᵛ</p>
+      </div>
+    </div>
+
+    <div class="w h a-x" style="left:72px;top:850px;width:1776px;--d:200ms"></div>
+    <div class="mono notes" style="left:72px">
+      <p>¹ Estudo da Salesforce, "State of Sales", 2021</p>
+      <p>² Pesquisa da Accenture, "The Power of AI in Appointment Scheduling", 2022</p>
+      <p>³ Relatório da Zendesk, "Customer Experience Trends", 2023</p>
+    </div>
+    <div class="mono notes" style="left:972px">
+      <p>ᵗ Análise da Gartner, "AI in Sales", 2022</p>
+      <p>ᵘ Estudo da Harvard Business Review, "The ROI of Automated Scheduling", 2021</p>
+      <p>ᵛ Relatório da McKinsey, "The Business Value of AI", 2023</p>
+    </div>
+  </div>
+</section>
+
+<!-- 08 -->
+<section class="slide night s08" data-sec="Comparativo" data-title="Agentes de IA: Seus Novos Funcionários Digitais" aria-label="08 Comparativo">
+  <div class="floor"></div>
+  <div class="inner">
+    <h2 class="disp title a-up">Agentes de IA: Seus Novos Funcionários Digitais</h2>
+    <p class="mono k mute a-up" style="left:72px;--d:60ms">Funcionário humanos</p>
+    <p class="mono k sig a-up" style="left:1008px;--d:100ms">Agentes de IA</p>
+    <div class="div a-y" style="left:960px;top:290px;height:610px"></div>
+
+    <div class="w h a-x" style="left:72px;top:467px;width:840px;--d:40ms"></div>
+    <div class="w h a-x" style="left:72px;top:575px;width:840px;--d:80ms"></div>
+    <div class="w h a-x" style="left:72px;top:683px;width:840px;--d:120ms"></div>
+    <div class="w h a-x" style="left:72px;top:791px;width:840px;--d:160ms"></div>
+    <div class="w h a-x" style="left:72px;top:899px;width:840px;--d:200ms"></div>
+    <div class="w h a-x" style="left:1008px;top:467px;width:840px;--d:60ms"></div>
+    <div class="w h a-x" style="left:1008px;top:575px;width:840px;--d:100ms"></div>
+    <div class="w h a-x" style="left:1008px;top:683px;width:840px;--d:140ms"></div>
+    <div class="w h a-x" style="left:1008px;top:791px;width:840px;--d:180ms"></div>
+    <div class="w h a-x" style="left:1008px;top:899px;width:840px;--d:220ms"></div>
+
+    <ul class="colx left a-up" style="left:72px;--d:160ms">
+      <li>Trabalham em horário comercial</li>
+      <li>Especialistas em áreas específicas</li>
+      <li>Aprendem com a experiência ao longo do tempo</li>
+      <li>Lidam bem com situações complexas e emocionais</li>
+      <li>Necessitam de pausas e férias</li>
+    </ul>
+    <ul class="colx right a-up" style="left:1008px;--d:260ms">
+      <li>Disponíveis 24 horas por dia, 7 dias por semana</li>
+      <li>Podem ser treinados para múltiplas funções</li>
+      <li>Aprendem rapidamente com dados e interações</li>
+      <li>Excelentes em tarefas repetitivas e análise de dados</li>
+      <li>Não se cansam ou precisam de pausas</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 09 -->
+<section class="slide ivory s09" data-sec="Integração" data-title="Agentes de IA integrados ao seu Negócio" aria-label="09 Integração">
+  <div class="floor"></div>
+  <div class="inner">
+    <h2 class="disp title a-up">Agentes de IA integrados ao seu Negócio</h2>
+    <div class="w h a-x" style="left:72px;top:260px;width:1776px"></div>
+    <div class="w h a-x" style="left:72px;top:960px;width:1776px"></div>
+    <div class="w v a-y" style="left:72px;top:260px;height:700px"></div>
+    <div class="w v a-y" style="left:1847px;top:260px;height:700px"></div>
+    <div class="w h a-x" style="left:72px;top:610px;width:1776px;transition-duration:200ms;--d:120ms"></div>
+    <div class="w v a-y" style="left:960px;top:260px;height:700px;transition-duration:200ms;--d:320ms"></div>
+
+    <div class="q a-up" style="left:120px;top:306px;--d:400ms">
+      <h3 class="disp">Canais</h3>
+      <p class="txt">Agentes de IA podem ser conectados a vários canais, incluindo chat, WhatsApp e Instagram</p>
+    </div>
+    <div class="q a-up" style="left:1008px;top:306px;--d:450ms">
+      <h3 class="disp">Processos</h3>
+      <p class="txt">Os agentes de IA automatizam tarefas repetitivas, otimizam fluxos de trabalho e liberam seus funcionários para tarefas mais estratégicas.</p>
+    </div>
+    <div class="q a-up" style="left:120px;top:656px;--d:500ms">
+      <h3 class="disp">Sistemas</h3>
+      <p class="txt">Os agentes de IA se conectam a seus sistemas existentes, como CRM, ERP e plataformas de e-commerce, para acessar informações e executar ações.</p>
+    </div>
+    <div class="q a-up" style="left:1008px;top:656px;--d:550ms">
+      <h3 class="disp">Equipe</h3>
+      <p class="txt">Os agentes de IA trabalham em conjunto com sua equipe, fornecendo suporte, respondendo perguntas e realizando tarefas repetitivas, liberando o tempo dos seus colaboradores.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="slide ivory s10" data-sec="Cases" data-title="Cases de Sucesso de Agentes de IA" aria-label="10 Cases">
+  <div class="floor"></div>
+  <div class="inner">
+    <h2 class="disp title a-up">Cases de Sucesso de Agentes de IA</h2>
+    <div class="panel a-up" style="--d:60ms">
+      <div class="cidx" role="tablist" aria-label="Cases">
+        <i class="cbar"></i>
+        <button type="button" role="tab"><span class="ci">01</span><span class="cw"><span class="cn">Banco Bradesco</span></span></button>
+        <button type="button" role="tab"><span class="ci">02</span><span class="cw"><span class="cn">Natura</span></span></button>
+        <button type="button" role="tab"><span class="ci">03</span><span class="cw"><span class="cn">Itaú Unibanco</span></span></button>
+        <button type="button" role="tab"><span class="ci">04</span><span class="cw"><span class="cn">Magazine Luiza</span></span></button>
+        <button type="button" role="tab"><span class="ci">05</span><span class="cw"><span class="cn">Lojas Renner</span></span></button>
+        <button type="button" role="tab"><span class="ci">06</span><span class="cw"><span class="cn">Porto Seguro</span></span></button>
+        <button type="button" role="tab"><span class="ci">07</span><span class="cw"><span class="cn">B2W Digital</span><span class="cs">(Americanas, Submarino, Shoptime)</span></span></button>
+      </div>
+    </div>
+    <div class="detail a-up" style="--d:140ms">
+      <article class="case">
+        <span class="rv"><span class="mono cat">Suporte</span></span>
+        <span class="rv"><span class="txt cp" style="--rd:40ms">O Bradesco implementou a BIA (Bradesco Inteligência Artificial) para atendimento ao cliente.</span></span>
+        <p class="mono ck">Resultado:</p>
+        <span class="rv"><span class="disp cr num" style="--rd:90ms">Capacidade de responder a mais de 10 milhões de perguntas por mês, com precisão de 95%.</span></span>
+        <p class="mono ck k2">Impacto:</p>
+        <span class="rv"><span class="disp ci2" style="--rd:150ms">Redução do tempo de espera e melhoria na satisfação do cliente.</span></span>
+      </article>
+      <article class="case" hidden>
+        <span class="rv"><span class="mono cat">Vendas e Agendamento</span></span>
+        <span class="rv"><span class="txt cp" style="--rd:40ms">A Natura implementou um sistema de IA para otimizar o agendamento de consultoras e prever demandas de produtos.</span></span>
+        <p class="mono ck">Resultado:</p>
+        <span class="rv"><span class="disp cr num" style="--rd:90ms">Aumento de 20% na produtividade das consultoras e redução de 15% no desperdício de produtos.</span></span>
+        <p class="mono ck k2">Impacto:</p>
+        <span class="rv"><span class="disp ci2" style="--rd:150ms">Melhor gerenciamento de estoque e aumento nas vendas.</span></span>
+      </article>
+      <article class="case" hidden>
+        <span class="rv"><span class="mono cat">Suporte e Vendas</span></span>
+        <span class="rv"><span class="txt cp" style="--rd:40ms">O Itaú implementou chat bots de IA para atendimento ao cliente e recomendação de produtos financeiros.</span></span>
+        <p class="mono ck">Resultado:</p>
+        <span class="rv"><span class="disp cr num" style="--rd:90ms">Redução de 50% no tempo de resolução de problemas e aumento de 30% nas vendas cruzadas.</span></span>
+        <p class="mono ck k2">Impacto:</p>
+        <span class="rv"><span class="disp ci2" style="--rd:150ms">Melhoria na experiência do cliente e aumento da receita.</span></span>
+      </article>
+      <article class="case" hidden>
+        <span class="rv"><span class="mono cat">Vendas e Suporte</span></span>
+        <span class="rv"><span class="txt cp" style="--rd:40ms">A Magazine Luiza implementou a Lu, uma assistente virtual baseada em IA, para melhorar as vendas online e o suporte ao cliente.</span></span>
+        <p class="mono ck">Resultado:</p>
+        <span class="rv"><span class="disp cr num" style="--rd:90ms">Aumento de 40% nas vendas online e redução de 80% no tempo de resposta ao cliente.</span></span>
+        <p class="mono ck k2">Impacto:</p>
+        <span class="rv"><span class="disp ci2" style="--rd:150ms">Melhoria significativa na experiência do cliente e aumento da eficiência operacional.</span></span>
+      </article>
+      <article class="case" hidden>
+        <span class="rv"><span class="mono cat">Agendamento e Vendas</span></span>
+        <span class="rv"><span class="txt cp" style="--rd:40ms">A Renner implementou IA para otimizar o agendamento de entregas e personalizar recomendações de produtos.</span></span>
+        <p class="mono ck">Resultado:</p>
+        <span class="rv"><span class="disp cr num" style="--rd:90ms">Redução de 25% no tempo de entrega e aumento de 15% nas vendas online.</span></span>
+        <p class="mono ck k2">Impacto:</p>
+        <span class="rv"><span class="disp ci2" style="--rd:150ms">Melhoria na logística e aumento na satisfação do cliente.</span></span>
+      </article>
+      <article class="case" hidden>
+        <span class="rv"><span class="mono cat">Agendamento e Suporte</span></span>
+        <span class="rv"><span class="txt cp" style="--rd:40ms">A Porto Seguro implementou IA para agendar vistorias de veículos e processar sinistros.</span></span>
+        <p class="mono ck">Resultado:</p>
+        <span class="rv"><span class="disp cr num" style="--rd:90ms">Redução de 60% no tempo de agendamento de vistorias e aumento de 40% na velocidade de processamento de sinistros.</span></span>
+        <p class="mono ck k2">Impacto:</p>
+        <span class="rv"><span class="disp ci2" style="--rd:150ms">Melhoria na eficiência operacional e aumento na satisfação do cliente.</span></span>
+      </article>
+      <article class="case" hidden>
+        <span class="rv"><span class="mono cat">Vendas e Suporte</span></span>
+        <span class="rv"><span class="txt cp" style="--rd:40ms">A B2W implementou IA para personalização de ofertas e atendimento ao cliente.</span></span>
+        <p class="mono ck">Resultado:</p>
+        <span class="rv"><span class="disp cr num" style="--rd:90ms">Aumento de 35% na taxa de conversão e redução de 40% no tempo de resolução de problemas.</span></span>
+        <p class="mono ck k2">Impacto:</p>
+        <span class="rv"><span class="disp ci2" style="--rd:150ms">Melhoria na experiência de compra e aumento da fidelidade do cliente.</span></span>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="slide night s11" data-sec="Método" data-title="Criação de Funcionários de IA: Um Processo em Duas Fases" aria-label="11 Método">
+  <div class="floor"></div>
+  <div class="inner">
+    <h2 class="disp title a-up">Criação de Funcionários de IA:<br>Um Processo em Duas Fases</h2>
+    <div class="ph a-up" style="left:72px;--d:80ms">
+      <span class="mono wm" aria-hidden="true">01</span>
+      <h3 class="disp">Implementação</h3>
+      <p class="txt">Esta fase é como contratar um novo funcionário. Você precisa garantir que ele esteja pronto para trabalhar. Isso inclui escolher o modelo de IA certo, treinar o modelo com seus dados específicos e integrá-lo aos seus sistemas existentes.</p>
+    </div>
+    <div class="ph a-up" style="left:972px;--d:200ms">
+      <span class="mono wm" aria-hidden="true">02</span>
+      <h3 class="disp">Otimização e Manutenção</h3>
+      <p class="txt">Esta fase é como fornecer desenvolvimento profissional contínuo. Isso significa monitorar o desempenho do agente, ajustando seus parâmetros, fornecendo feedback regular e adaptando-o às mudanças em seu negócio.</p>
+    </div>
+    <div class="w h a-x" style="left:72px;top:800px;width:1776px;--d:240ms"></div>
+    <p class="close a-up" style="--d:360ms">Em suma, o processo de criação de funcionários de IA é um investimento contínuo que exige atenção e dedicação. Mas, com as etapas certas, você poderá contar com um funcionário de IA que será um ativo valioso para o seu negócio, impulsionando sua eficiência e resultados.</p>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="slide ivory s12" data-sec="Expansão" data-title="Como a implementação de funcionários de IA expandiria as capacidades que foram demonstradas?" aria-label="12 Expansão">
+  <div class="floor"></div>
+  <div class="inner">
+    <h2 class="disp title a-up">Como a implementação de funcionários de IA expandiria<br>as capacidades que foram demonstradas?</h2>
+    <div class="prog a-y"></div>
+    <div class="w h a-x" style="left:112px;top:316px;width:1736px;--d:0ms"></div>
+    <div class="w h a-x" style="left:112px;top:481px;width:1736px;--d:150ms"></div>
+    <div class="w h a-x" style="left:112px;top:646px;width:1736px;--d:300ms"></div>
+    <div class="w h a-x" style="left:112px;top:811px;width:1736px;--d:450ms"></div>
+    <div class="w h a-x" style="left:112px;top:975px;width:1736px;--d:600ms"></div>
+    <div class="band a-up" style="top:316px;--d:0ms">
+      <span class="mono n">01</span>
+      <h3 class="disp">Integração aos seus sistemas</h3>
+      <p class="txt">Imagine que os agentes de IA que você viu podem se integrar aos seus sistemas de CRM, suporte ao cliente, agendamento e muito mais.</p>
+    </div>
+    <div class="band a-up" style="top:481px;--d:150ms">
+      <span class="mono n">02</span>
+      <h3 class="disp">Personalização para suas necessidades específicas</h3>
+      <p class="txt">Como responder perguntas, coletar informações de clientes e gerenciar compromissos.</p>
+    </div>
+    <div class="band a-up" style="top:646px;--d:300ms">
+      <span class="mono n">03</span>
+      <h3 class="disp">Testes em cenários reais</h3>
+      <p class="txt">Depois da integração, os agentes de IA são testados em cenários reais para garantir que eles funcionam como esperado e possam lidar com diferentes tipos de solicitações.</p>
+    </div>
+    <div class="band a-up" style="top:811px;--d:450ms">
+      <span class="mono n">04</span>
+      <h3 class="disp">Monitoramento e ajustes contínuos</h3>
+      <p class="txt">Após os testes, os agentes de IA são monitorados e ajustados continuamente para melhorar o desempenho deles.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 13 -->
+<section class="slide night s13" data-sec="Cronograma" data-title="Cronograma de Implementação" aria-label="13 Cronograma">
+  <div class="floor"></div>
+  <div class="inner">
+    <div class="head a-up">
+      <h2 class="disp">Cronograma de Implementação</h2>
+      <p class="txt">A implementação é realizada em 3 grandes etapas…</p>
+    </div>
+
+    <div class="f1 h a-x" style="left:72px;top:560px;width:828px;height:1px;--d:120ms"></div>
+    <div class="tk a-y up" style="left:72px;top:546px;--d:120ms"></div>
+    <div class="tk a-y up" style="left:348px;top:546px;--d:260ms"></div>
+    <div class="tk a-y up" style="left:624px;top:546px;--d:400ms"></div>
+    <div class="tk a-y up" style="left:899px;top:546px;--d:540ms"></div>
+    <div class="stg a-up" style="left:72px;--d:100ms"><span class="mono n">01</span><span class="disp nm">Onboarding</span><span class="mono dur">[<span data-to="1" data-delay="300">1</span>d]</span></div>
+    <div class="stg a-up" style="left:348px;--d:220ms"><span class="mono n">02</span><span class="disp nm">Implementação</span><span class="mono dur">[<span data-to="14" data-delay="420">14</span>d]</span></div>
+    <div class="stg a-up" style="left:624px;--d:340ms"><span class="mono n">03</span><span class="disp nm">Teste e Validação</span><span class="mono dur">[<span data-to="2" data-delay="540">2</span>d]</span></div>
+    <p class="disp tot num a-up" style="--d:500ms"><span data-to="3" data-delay="700">3</span> Semanas</p>
+
+    <div class="f2 h a-x" style="left:964px;top:560px;width:884px;height:1px;--d:720ms"></div>
+    <div class="tk a-y up" style="left:964px;top:546px;opacity:.5;--d:720ms"></div>
+    <div class="p04 a-up" style="--d:760ms"><span class="mono n">04</span><span class="disp nm">Manutenção &amp; Otimização</span></div>
+    <p class="disp min num a-up" style="--d:860ms">Mínimo de <span data-to="6" data-delay="1060">6</span> meses...</p>
+
+    <p class="disp live a-up" style="--d:1000ms">Agente funcionando <span class="sig">24/7</span></p>
+  </div>
+</section>
+
+<!-- 14 -->
+<section class="slide ivory s14" data-sec="Planos" data-title="Planos de Contratação de Funcionários IA" aria-label="14 Planos">
+  <div class="floor"></div>
+  <div class="inner">
+    <h2 class="disp title a-up">Planos de Contratação de Funcionários IA</h2>
+    <div class="w h a-x" style="left:72px;top:330px;width:1776px;--d:0ms"></div>
+    <div class="w h a-x" style="left:72px;top:402px;width:1776px;--d:30ms"></div>
+    <div class="w h a-x" style="left:72px;top:482px;width:1776px;--d:60ms"></div>
+    <div class="w h a-x" style="left:72px;top:562px;width:1776px;--d:90ms"></div>
+    <div class="w h a-x" style="left:72px;top:712px;width:1776px;--d:120ms"></div>
+    <div class="w h a-x" style="left:72px;top:792px;width:1776px;--d:150ms"></div>
+    <div class="w h a-x" style="left:72px;top:872px;width:1776px;--d:180ms"></div>
+
+    <div class="rl a-up" style="--d:40ms">
+      <span style="top:114px">Canais</span>
+      <span style="top:190px">Agentes de IA</span>
+      <span style="top:270px">Integrações básicas inclusas</span>
+      <span style="top:385px">Implementação [pagto. único]</span>
+      <span style="top:500px">Otimização [mensal]*</span>
+      <span style="top:580px">Relatórios de desempenho</span>
+    </div>
+
+    <div class="plan a-up" style="left:522px;--d:100ms" tabindex="0" aria-label="Plano Gold">
+      <i class="fr"></i>
+      <p class="mono pn">Plano Gold</p>
+      <p class="txt c1">Site e WhatsApp</p>
+      <p class="disp c2 num">1</p>
+      <p class="disp c5 num">1</p>
+      <p class="disp c3 num">R$ 2.500</p>
+      <p class="mono c4">R$ 550</p>
+      <p class="mono c6">1 por mês</p>
+    </div>
+    <div class="plan a-up" style="left:972px;--d:160ms" tabindex="0" aria-label="Plano Platinum">
+      <i class="fr"></i>
+      <p class="mono pn">Plano Platinum</p>
+      <p class="txt c1">Site e WhatsApp</p>
+      <p class="disp c2 num">2</p>
+      <p class="disp c5 num">2</p>
+      <p class="disp c3 num">R$ 4.700</p>
+      <p class="mono c4">R$ 800</p>
+      <p class="mono c6">1 por mês</p>
+    </div>
+    <div class="plan black a-up" style="left:1422px;--d:220ms" tabindex="0" aria-label="Plano Black">
+      <i class="fr"></i>
+      <p class="mono pn">Plano Black</p>
+      <p class="txt c1">Site e WhatsApp</p>
+      <p class="disp c2 num">3</p>
+      <p class="disp c5 num">3</p>
+      <p class="disp c3 num">R$ 6.900</p>
+      <p class="mono c4">R$ 1050</p>
+      <p class="mono c6">2 por mês</p>
+    </div>
+
+    <div class="mono notes a-up" style="--d:300ms">
+      <p>*contrato mínimo de 3 meses</p>
+    </div>
+  </div>
+</section>
+
+<!-- 15 -->
+<section class="slide ivory s15" data-sec="Integrações" data-title="Valores para Integrações Adicionais" aria-label="15 Integrações">
+  <div class="floor"></div>
+  <div class="inner">
+    <h2 class="disp title a-up">Valores para Integrações Adicionais</h2>
+    <div class="w v a-y" style="left:960px;top:270px;height:690px;--d:60ms"></div>
+
+    <div class="pan a-up" style="left:72px;--d:60ms">
+      <h3 class="disp">Integração básica</h3>
+      <p class="txt sub">(fluxo de única direção entre agente e sistema)</p>
+      <svg width="620" height="64" viewBox="0 0 620 64" aria-hidden="true">
+        <path pathLength="1" d="M1 32H614" style="--d:200ms"/>
+        <path pathLength="1" d="M598 16L614 32L598 48" style="--d:520ms"/>
+      </svg>
+      <p class="mono k">Implementação</p>
+      <p class="disp big num">R$1000</p>
+      <p class="mono k k2">Manutenção</p>
+      <p class="mono man">R$300</p>
+    </div>
+    <div class="pan a-up" style="left:1008px;--d:140ms">
+      <h3 class="disp">Integração Complexa</h3>
+      <p class="txt sub">(fluxos bidirecionais e múltiplos sistemas)</p>
+      <svg width="620" height="64" viewBox="0 0 620 64" aria-hidden="true">
+        <path pathLength="1" d="M1 16H614" style="--d:280ms"/>
+        <path pathLength="1" d="M598 1L614 16L598 31" style="--d:600ms"/>
+        <path pathLength="1" d="M619 48H6" style="--d:360ms"/>
+        <path pathLength="1" d="M22 33L6 48L22 63" style="--d:680ms"/>
+      </svg>
+      <p class="mono k">Implementação</p>
+      <p class="disp big num">R$3000</p>
+      <p class="mono k k2">Manutenção</p>
+      <p class="mono man">R$800</p>
+    </div>
+  </div>
+</section>
+
+<!-- 16 -->
+<section class="slide night s16" data-sec="ROI" data-title="ROI potencial dos agentes de IA." aria-label="16 ROI">
+  <div class="floor"></div>
+  <div class="inner">
+    <h2 class="disp title a-up">ROI potencial dos agentes de IA.</h2>
+
+    <div class="disp eq num" aria-label="R$30 × 30 × 12 = R$10.800">
+      <span class="eq1" aria-hidden="true"><span class="tok">R$30</span> <span class="tok">×</span> <span class="tok">30</span> <span class="tok">×</span> <span class="tok">12</span></span>
+      <span class="eq2" aria-hidden="true"><span class="tok">=</span> <span class="tok">R$<span data-to="10800" data-fmt="br" data-manual>10.800</span></span><i class="eq-ul"></i></span>
+    </div>
+
+    <ul class="rq">
+      <li class="a-up" style="--d:40ms"><div class="w h"></div>
+        <p class="mono k">Escalabilidade</p>
+        <p class="txt">Imagine dobrar sua capacidade de trabalho sem adicionar mais membros à sua equipe. Como isso impulsionaria sua estratégia de crescimento?</p>
+      </li>
+      <li class="a-up" style="--d:80ms"><div class="w h"></div>
+        <p class="mono k">Redução de erros</p>
+        <p class="txt">Quanto você acha que os pequenos erros estão custando para o seu negócio a cada ano?</p>
+        <p class="mono ex">Ex: $ erro (R$30) x # erros no mês (30) x 12 meses →</p>
+      </li>
+      <li class="a-up" style="--d:120ms"><div class="w h"></div>
+        <p class="mono k">Economia de tempo</p>
+        <p class="txt">Quanto tempo você estima que sua equipe economizaria por semana usando este agente?</p>
+      </li>
+      <li class="a-up" style="--d:160ms"><div class="w h"></div>
+        <p class="mono k">Aumento de produtividade</p>
+        <p class="txt">Imagine o impacto na sua receita se sua equipe pudesse concluir 30% mais tarefas.</p>
+      </li>
+      <li class="a-up" style="--d:200ms"><div class="w h"></div>
+        <p class="mono k">Melhora no atendimento ao cliente</p>
+        <p class="txt">Se conseguíssemos diminuir pela metade o tempo de resposta ao cliente, como isso transformaria sua taxa de retenção?</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- 17 -->
+<section class="slide ivory s17" data-sec="Documento" data-title="Comparativo de Agentes de IA e Funcionários" aria-label="17 Documento">
+  <div class="floor"></div>
+  <div class="inner">
+    <div class="w h a-x" style="left:72px;top:480px;width:600px"></div>
+    <p class="mono src a-up">Google Docs</p>
+    <h2 class="disp doc" id="docTitle">
+      <span class="mask"><span style="--d:60ms">Comparativo de Agentes de IA</span></span>
+      <span class="mask"><span style="--d:150ms">e Funcionários</span></span>
+    </h2>
+    <a class="doc-cta a-up" id="docCta" href="#" target="_blank" rel="noopener noreferrer" style="--d:320ms" hidden>
+      <span>Clique para abrir a tabela comparativa</span>
+      <svg class="arr" viewBox="0 0 14 14" aria-hidden="true"><path d="M1 13L13 1M4 1H13V10"/></svg>
+      <i class="u-hot"></i>
+    </a>
+  </div>
+</section>
+
+<!-- 18 -->
+<section class="slide night s18" data-sec="Contato" data-title="Contatos" aria-label="18 Contato">
+  <div class="floor"></div>
+  <div class="inner">
+    <p class="lab ctl a-up">Contatos</p>
+    <div class="cb a-up" style="top:420px;--d:60ms">
+      <p class="mono k">Email</p>
+      <a class="lnk" href="mailto:lndr.najar.ai@gmail.com"><span class="ul disp">lndr.najar.ai@gmail.com<i class="u-base a-x" style="--d:320ms"></i><i class="u-hot"></i></span></a>
+    </div>
+    <div class="cb a-up" style="top:610px;--d:140ms">
+      <p class="mono k">Whatsapp</p>
+      <a class="lnk" href="https://wa.me/5555999801642" target="_blank" rel="noopener noreferrer"><span class="ul disp num">(55) 99980-1642<i class="u-base a-x" style="--d:400ms"></i><i class="u-hot"></i></span></a>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<div id="overview" aria-hidden="true"><div class="ov-grid"></div></div>
+
+<div class="chrome tn" id="chN"><span class="c-brand">NAJARAI</span><span class="c-sec"></span><span class="c-idx"></span></div>
+<div class="chrome ti" id="chI" aria-hidden="true"><span class="c-brand">NAJARAI</span><span class="c-sec"></span><span class="c-idx"></span></div>
+<div class="svc" id="svc" aria-hidden="true"><i class="svc-ring"></i><i class="svc-core"></i></div>
+</div>
+
+<script>
+const COMPARATIVO_URL = "https://docs.google.com/spreadsheets/d/1Olp-2nceIEBF1UXJsprJEXoIWFA6ITMPqlKAF1T-Wek/edit?usp=sharing";
+
+(function () {
+  "use strict";
+
+  const stage = document.getElementById("stage");
+  const slides = Array.from(document.querySelectorAll("#deck .slide"));
+  const N = slides.length;
+  const chN = document.getElementById("chN");
+  const chI = document.getElementById("chI");
+  const svc = document.getElementById("svc");
+  const ovGrid = document.querySelector("#overview .ov-grid");
+  const RM = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const reduced = () => RM.matches;
+  const pad = (n) => String(n).padStart(2, "0");
+
+  let cur = -1;
+  let visit = 0;
+  let timers = [];
+  let leaveTimer = 0;
+  let ovOpen = false;
+
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+  function fit() {
+    const W = window.innerWidth, H = window.innerHeight;
+    const s = Math.min(W / 1920, H / 1080);
+    stage.style.transform = "translate(" + (W - 1920 * s) / 2 + "px," + (H - 1080 * s) / 2 + "px) scale(" + s + ")";
+  }
+
+  /* ── números que contam ── */
+  function fmt(v, br) {
+    const s = String(Math.round(v));
+    return br ? s.replace(/\B(?=(\d{3})+(?!\d))/g, ".") : s;
+  }
+  function setCount(el, v) { el.textContent = fmt(v, el.dataset.fmt === "br"); }
+  function runCount(el, token, delay, done) {
+    const to = parseFloat(el.dataset.to);
+    if (reduced()) { setCount(el, to); if (done) done(); return; }
+    setCount(el, 0);
+    later(function () {
+      const t0 = performance.now();
+      function step(now) {
+        if (token !== visit) return;
+        const p = Math.min(1, (now - t0) / 700);
+        setCount(el, to * (1 - Math.pow(1 - p, 3)));
+        if (p < 1) requestAnimationFrame(step);
+        else if (done) done();
+      }
+      requestAnimationFrame(step);
+    }, delay);
+  }
+
+  /* ── slide 10: índice de cases ── */
+  const s10 = slides[9];
+  const cBtns = Array.from(s10.querySelectorAll(".cidx button"));
+  const cArts = Array.from(s10.querySelectorAll(".case"));
+  const cBar = s10.querySelector(".cbar");
+  let caseI = 0;
+
+  function placeBar(instant) {
+    const b = cBtns[caseI];
+    const nm = b.querySelector(".cn");
+    const x = nm.offsetLeft;
+    const y = nm.offsetTop + nm.offsetHeight + 8;
+    if (instant) cBar.classList.add("snap");
+    cBar.style.transform = "translate(" + x + "px," + y + "px) scaleX(" + nm.offsetWidth / 100 + ")";
+    if (instant) { void cBar.offsetWidth; cBar.classList.remove("snap"); }
+  }
+  function setCase(i, animate) {
+    i = Math.max(0, Math.min(cArts.length - 1, i));
+    if (animate && i === caseI) return;
+    caseI = i;
+    cBtns.forEach((b, k) => {
+      b.classList.toggle("on", k === i);
+      b.setAttribute("aria-selected", k === i ? "true" : "false");
+    });
+    cArts.forEach((a, k) => { a.hidden = k !== i; });
+    placeBar(!animate || reduced());
+    if (animate && !reduced()) {
+      const a = cArts[i];
+      a.classList.add("pre");
+      void a.offsetWidth;
+      a.classList.remove("pre");
+    }
+  }
+  cBtns.forEach((b, k) => {
+    b.addEventListener("click", (e) => {
+      setCase(k, true);
+      if (e.detail > 0) b.blur();
+    });
+  });
+
+  /* ── ganchos por slide ── */
+  const hooks = {
+    9: function () { setCase(0, false); },
+    15: function (s, token) {
+      const first = Array.from(s.querySelectorAll(".eq1 .tok"));
+      const second = Array.from(s.querySelectorAll(".eq2 .tok"));
+      const ul = s.querySelector(".eq-ul");
+      const num = s.querySelector(".eq2 [data-to]");
+      const all = first.concat(second);
+      if (reduced()) {
+        all.forEach((t) => t.classList.add("on"));
+        ul.classList.add("on");
+        setCount(num, parseFloat(num.dataset.to));
+        return;
+      }
+      all.forEach((t) => t.classList.remove("on"));
+      ul.classList.remove("on");
+      setCount(num, 0);
+      const t0 = 420, step = 110;
+      first.forEach((t, i) => later(() => t.classList.add("on"), t0 + i * step));
+      const tRes = t0 + (first.length - 1) * step + 380 + 280;
+      later(() => { second.forEach((t) => t.classList.add("on")); ul.classList.add("on"); }, tRes);
+      runCount(num, token, tRes, null);
+    }
+  };
+
+  function prepare(s, n, token) {
+    s.querySelectorAll(".js-tail").forEach((t) => t.classList.toggle("on", reduced()));
+    s.querySelectorAll("[data-to]:not([data-manual])").forEach((el) => {
+      const tail = el.nextElementSibling && el.nextElementSibling.classList.contains("js-tail") ? el.nextElementSibling : null;
+      runCount(el, token, parseInt(el.dataset.delay || "400", 10), tail ? () => tail.classList.add("on") : null);
+    });
+    if (hooks[n]) hooks[n](s, token);
+  }
+
+  /* ── chrome ── */
+  function updateChrome() {
+    const s = slides[cur];
+    const ink = s.classList.contains("ivory") && !ovOpen;
+    chN.style.opacity = ink ? "0" : "1";
+    chI.style.opacity = ink ? "1" : "0";
+    const sec = s.dataset.sec;
+    const idx = pad(cur + 1) + " / " + pad(N);
+    [chN, chI].forEach((c) => {
+      c.querySelector(".c-sec").textContent = sec;
+      c.querySelector(".c-idx").textContent = idx;
+    });
+    svc.classList.toggle("on", cur >= 1 && cur <= N - 2);
+    svc.classList.toggle("ink", ink);
+  }
+
+  /* ── navegação ── */
+  function go(n) {
+    n = Math.max(0, Math.min(N - 1, n));
+    if (n === cur) return;
+    clearTimers();
+    clearTimeout(leaveTimer);
+    visit++;
+    const token = visit;
+    const prev = cur >= 0 ? slides[cur] : null;
+    const next = slides[n];
+
+    slides.forEach((s) => {
+      if (s !== prev && s !== next) s.classList.remove("is-current", "is-leaving", "is-pre");
+    });
+    if (prev) {
+      if (prev.contains(document.activeElement)) document.activeElement.blur();
+      prev.classList.remove("is-current", "is-pre");
+      prev.classList.add("is-leaving");
+    }
+    next.classList.remove("is-leaving");
+    next.classList.add("is-current", "is-pre");
+    prepare(next, n, token);
+    void next.offsetWidth;
+    next.classList.remove("is-pre");
+
+    if (prev) leaveTimer = setTimeout(() => prev.classList.remove("is-leaving"), reduced() ? 0 : 440);
+
+    cur = n;
+    updateChrome();
+    try { history.replaceState(null, "", "#" + (n + 1)); } catch (e) { /* file:// sem history */ }
+  }
+
+  /* ── visão geral ── */
+  const thumbs = slides.map((s, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "thumb " + (s.classList.contains("ivory") ? "ivory" : "night");
+    b.style.setProperty("--i", i);
+    b.tabIndex = -1;
+    b.innerHTML = '<i class="fr"></i><span class="mono tn"></span><span class="disp tt"></span>';
+    b.querySelector(".tn").textContent = pad(i + 1) + " · " + s.dataset.sec;
+    b.querySelector(".tt").textContent = s.dataset.title;
+    b.addEventListener("click", () => { closeOv(); go(i); });
+    ovGrid.appendChild(b);
+    return b;
+  });
+  function openOv() {
+    ovOpen = true;
+    stage.classList.add("ov");
+    document.getElementById("overview").setAttribute("aria-hidden", "false");
+    thumbs.forEach((t, i) => { t.classList.toggle("is-here", i === cur); t.tabIndex = 0; });
+    if (document.activeElement) document.activeElement.blur();
+    thumbs[cur].focus({ preventScroll: true });
+    updateChrome();
+  }
+  function closeOv() {
+    ovOpen = false;
+    stage.classList.remove("ov");
+    document.getElementById("overview").setAttribute("aria-hidden", "true");
+    thumbs.forEach((t) => { t.tabIndex = -1; });
+    if (document.activeElement && document.activeElement.closest("#overview")) document.activeElement.blur();
+    updateChrome();
+  }
+
+  function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+    } catch (e) { /* sem suporte */ }
+  }
+
+  /* ── teclado ── */
+  window.addEventListener("keydown", (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const ae = document.activeElement;
+    if (ae && ae.tagName === "A") return;
+    const k = e.key;
+    const lk = k.length === 1 ? k.toLowerCase() : k;
+
+    if (ovOpen) {
+      if (k === "Escape" || lk === "o") { e.preventDefault(); closeOv(); return; }
+      let i = thumbs.indexOf(ae);
+      if (i < 0) i = cur;
+      const moves = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 6, ArrowUp: -6 };
+      if (k in moves) {
+        e.preventDefault();
+        const j = Math.max(0, Math.min(N - 1, i + moves[k]));
+        thumbs[j].focus({ preventScroll: true });
+      }
+      return;
+    }
+
+    const onButton = ae && ae.tagName === "BUTTON";
+    let handled = true;
+    switch (k) {
+      case "ArrowRight": case "PageDown": go(cur + 1); break;
+      case "ArrowLeft": case "PageUp": go(cur - 1); break;
+      case " ": case "Spacebar":
+        if (onButton) { handled = false; break; }
+        go(cur + 1); break;
+      case "ArrowDown": if (cur === 9) setCase(caseI + 1, true); else go(cur + 1); break;
+      case "ArrowUp": if (cur === 9) setCase(caseI - 1, true); else go(cur - 1); break;
+      case "Home": go(0); break;
+      case "End": go(N - 1); break;
+      default:
+        if (lk === "o") openOv();
+        else if (lk === "f") toggleFullscreen();
+        else handled = false;
+    }
+    if (handled) e.preventDefault();
+  });
+
+  /* ── clique no palco ── */
+  stage.addEventListener("click", (e) => {
+    if (ovOpen) return;
+    const a = e.target.closest("a");
+    if (a) { if (e.detail > 0) setTimeout(() => a.blur(), 0); return; }
+    if (e.target.closest("button")) return;
+    const r = stage.getBoundingClientRect();
+    if (e.clientX - r.left < r.width / 2) go(cur - 1); else go(cur + 1);
+  });
+
+  /* ── documento do slide 17 ── */
+  if (COMPARATIVO_URL) {
+    const h = document.getElementById("docTitle");
+    const a = document.createElement("a");
+    a.href = COMPARATIVO_URL;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.className = "lnk";
+    const ul = document.createElement("span");
+    ul.className = "ul";
+    while (h.firstChild) ul.appendChild(h.firstChild);
+    ul.insertAdjacentHTML("beforeend", '<i class="u-base"></i><i class="u-hot"></i>');
+    a.appendChild(ul);
+    h.appendChild(a);
+    const cta = document.getElementById("docCta");
+    cta.href = COMPARATIVO_URL;
+    cta.hidden = false;
+  }
+
+  window.addEventListener("resize", fit);
+  document.addEventListener("fullscreenchange", fit);
+  fit();
+
+  const fromHash = parseInt((location.hash || "").replace("#", ""), 10);
+  const first = fromHash >= 1 && fromHash <= N ? fromHash - 1 : 0;
+  let started = false;
+  function start() {
+    if (started) return;
+    started = true;
+    fit();
+    stage.classList.add("ready");
+    go(first);
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(start);
+    setTimeout(start, 1200);
+  } else {
+    start();
+  }
+})();
+</script>
+</body>
+</html>
